@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pathways — A Student Education Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-950:#0a1220;
+    --navy-900:#0d1826;
+    --navy-800:#122236;
+    --navy-700:#1a2f47;
+    --line:#25405c;
+    --parchment:#f6f1e4;
+    --parchment-dim:#e8e0cb;
+    --brass:#c9a227;
+    --brass-bright:#e2bc48;
+    --science:#3fa89a;
+    --commerce:#d4a017;
+    --humanities:#c17452;
+    --vocational:#8b98ab;
+    --higher:#a084c4;
+    --open:#d9b968;
+    --ink:#f6f1e4;
+    --ink-dim:#9fb0c3;
+    --node-text:#e8e0cb;
+    --hint-bg:rgba(13,24,38,.7);
+    font-size:16px;
+  }
+  html[data-theme="light"]{
+    --navy-950:#f3efe2;
+    --navy-900:#faf7ee;
+    --navy-800:#ece4cb;
+    --navy-700:#ddd2ab;
+    --line:#c9bd97;
+    --ink:#26210f;
+    --ink-dim:#6b5f42;
+    --node-text:#2e2814;
+    --hint-bg:rgba(255,255,255,.8);
+  }
+  html, body, header, #chart-wrap, #search, .node text, .link,
+  #zoomControls button, #resetHint{
+    transition: background-color .25s ease, color .25s ease, border-color .25s ease, fill .25s ease, stroke .25s ease;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--navy-950);color:var(--ink);font-family:'Inter',sans-serif;overflow:hidden;}
+
+  #app{display:flex;flex-direction:column;height:100vh;}
+
+  header{
+    display:flex;align-items:center;gap:24px;
+    padding:18px 28px;
+    background:linear-gradient(180deg,var(--navy-900),var(--navy-950));
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+    z-index:5;
+  }
+  .brand{display:flex;align-items:baseline;gap:12px;}
+  .brand .mark{
+    width:34px;height:34px;border-radius:50%;
+    border:2px solid var(--brass);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-weight:700;color:var(--brass-bright);
+    font-size:16px;flex-shrink:0;
+  }
+  h1{
+    font-family:'Fraunces',serif;font-weight:600;font-size:1.5rem;
+    margin:0;letter-spacing:.2px;color:var(--ink);
+  }
+  header .tagline{
+    font-size:.78rem;color:var(--ink-dim);
+    font-family:'IBM Plex Mono',monospace;letter-spacing:.03em;
+    display:none;
+  }
+  @media(min-width:900px){ header .tagline{display:block;} }
+
+  .search-wrap{flex:1;max-width:420px;position:relative;margin-left:auto;}
+  #search{
+    width:100%;padding:10px 14px 10px 36px;border-radius:8px;
+    border:1px solid var(--line);background:var(--navy-800);
+    color:var(--ink);font-family:'Inter',sans-serif;font-size:.92rem;
+    outline:none;transition:border-color .15s;
+  }
+  #search:focus{border-color:var(--brass);}
+  #search::placeholder{color:var(--ink-dim);}
+  .search-wrap::before{
+    content:"⌕";position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    color:var(--ink-dim);font-size:1.1rem;pointer-events:none;
+  }
+  #matchCount{
+    font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--brass-bright);
+    margin-left:10px;white-space:nowrap;min-width:60px;display:inline-block;
+  }
+
+  #themeToggle{
+    width:36px;height:36px;border-radius:8px;flex-shrink:0;
+    border:1px solid var(--line);background:var(--navy-800);
+    color:var(--ink);font-size:1.05rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background-color .25s ease,border-color .25s ease,transform .15s ease;
+  }
+  #themeToggle:hover{background:var(--navy-700);transform:rotate(-12deg);}
+
+  .legend{display:none;gap:14px;align-items:center;padding:0 28px 12px;flex-shrink:0;flex-wrap:wrap;}
+  @media(min-width:760px){ .legend{display:flex}; }
+  .legend .item{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;}
+  .legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  main{flex:1;display:flex;min-height:0;position:relative;}
+
+  #chart-wrap{flex:1;position:relative;overflow:hidden;background:
+    radial-gradient(ellipse at 15% 20%, rgba(201,162,39,0.05), transparent 45%),
+    var(--navy-950);
+  }
+  #chart-wrap svg{width:100%;height:100%;cursor:grab;}
+  #chart-wrap svg:active{cursor:grabbing;}
+
+  .link{fill:none;stroke:var(--line);stroke-width:1.4px;}
+  .node circle{stroke-width:1.8px;cursor:pointer;transition:r .12s;}
+  .node:hover circle{filter:brightness(1.3);}
+  .node text{
+    font-family:'Inter',sans-serif;font-size:12.5px;fill:var(--node-text);
+    cursor:pointer;paint-order:stroke;stroke:var(--navy-950);stroke-width:3px;stroke-linejoin:round;
+  }
+  .node.root text{font-family:'Fraunces',serif;font-weight:600;font-size:16px;fill:var(--brass-bright);}
+  .node.matched circle{stroke:var(--brass-bright);stroke-width:3px;}
+  .node.matched text{fill:var(--brass-bright);font-weight:600;}
+  .node.selected circle{stroke:#ffffff;stroke-width:3px;}
+
+  /* side panel */
+  #panel{
+    width:0;flex-shrink:0;background:var(--parchment);color:#2a2317;
+    overflow-y:auto;overflow-x:hidden;transition:width .22s ease;
+    border-left:1px solid var(--line);
+  }
+  #panel.open{width:360px;}
+  @media(max-width:760px){
+    #panel.open{
+      position:absolute;top:0;right:0;height:100%;width:88vw;max-width:360px;
+      box-shadow:-8px 0 24px rgba(0,0,0,.45);
+    }
+  }
+  .panel-inner{padding:26px 24px 40px;min-width:340px;}
+  .panel-close{
+    display:none;position:absolute;top:14px;right:14px;
+    background:none;border:none;font-size:1.4rem;color:#5a4d33;cursor:pointer;
+  }
+  @media(max-width:760px){ .panel-close{display:block;} }
+
+  .panel-eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:.68rem;letter-spacing:.08em;
+    text-transform:uppercase;color:#8a7642;margin-bottom:6px;
+  }
+  .panel-title{
+    font-family:'Fraunces',serif;font-weight:600;font-size:1.5rem;line-height:1.15;
+    margin:0 0 14px;color:#241f14;
+  }
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+  .chip{
+    font-family:'IBM Plex Mono',monospace;font-size:.7rem;padding:4px 10px;border-radius:20px;
+    background:#241f14;color:var(--parchment);letter-spacing:.02em;
+  }
+  .chip.cat{color:#241f14;}
+  .panel-section-label{
+    font-family:'IBM Plex Mono',monospace;font-size:.68rem;text-transform:uppercase;
+    letter-spacing:.08em;color:#8a7642;display:block;margin:20px 0 6px;
+  }
+  .panel-desc{font-size:.94rem;line-height:1.6;color:#3a331f;}
+  hr.panel-divider{border:none;border-top:1px solid #d9cfae;margin:20px 0;}
+  .panel-hint{font-size:.82rem;color:#7a6c46;line-height:1.6;}
+  .panel-crumbs{font-size:.76rem;color:#9c8c5c;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
+  .panel-count{font-size:.8rem;color:#7a6c46;margin-top:4px;}
+
+  .empty-state{padding:36px 26px;}
+  .empty-state h2{font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;color:#241f14;}
+  .empty-state p{font-size:.9rem;line-height:1.65;color:#4a4127;}
+  .empty-state ul{padding-left:18px;font-size:.86rem;color:#4a4127;line-height:1.8;}
+
+  #zoomControls{
+    position:absolute;bottom:18px;left:18px;display:flex;flex-direction:column;gap:6px;z-index:3;
+  }
+  #zoomControls button{
+    width:32px;height:32px;border-radius:6px;border:1px solid var(--line);
+    background:var(--navy-800);color:var(--ink);font-size:1rem;cursor:pointer;
+  }
+  #zoomControls button:hover{background:var(--navy-700);}
+
+  #resetHint{
+    position:absolute;top:16px;left:18px;font-family:'IBM Plex Mono',monospace;
+    font-size:.7rem;color:var(--ink-dim);background:var(--hint-bg);
+    padding:6px 10px;border-radius:6px;border:1px solid var(--line);z-index:3;
+  }
+
+  ::-webkit-scrollbar{width:9px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#3a4f68;border-radius:6px;}
+  #panel::-webkit-scrollbar-thumb{background:#cabf98;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="mark">P</div>
+      <h1>Pathways</h1>
+    </div>
+    <span class="tagline">a student education framework · school → stream → degree → research</span>
+    <div class="search-wrap">
+      <input id="search" type="text" placeholder="Search courses, streams, trades…" autocomplete="off">
+    </div>
+    <span id="matchCount"></span>
+    <button id="themeToggle" title="Toggle light / dark theme" aria-label="Toggle theme">🌙</button>
+  </header>
+
+  <div class="legend">
+    <span class="item"><span class="dot" style="background:var(--science)"></span>Science stream</span>
+    <span class="item"><span class="dot" style="background:var(--commerce)"></span>Commerce stream</span>
+    <span class="item"><span class="dot" style="background:var(--humanities)"></span>Humanities stream</span>
+    <span class="item"><span class="dot" style="background:var(--vocational)"></span>Polytechnic / ITI / Vocational</span>
+    <span class="item"><span class="dot" style="background:var(--open)"></span>Open to all streams</span>
+    <span class="item"><span class="dot" style="background:var(--higher)"></span>Postgraduate &amp; research</span>
+  </div>
+
+  <main>
+    <div id="chart-wrap">
+      <div id="resetHint">scroll / drag to pan · click a node to expand</div>
+      <div id="zoomControls">
+        <button id="zoomIn" title="Zoom in">+</button>
+        <button id="zoomOut" title="Zoom out">−</button>
+        <button id="zoomReset" title="Reset view">⟲</button>
+      </div>
+      <svg id="tree"></svg>
+    </div>
+    <aside id="panel">
+      <button class="panel-close" id="panelClose">×</button>
+      <div class="panel-inner" id="panelInner"></div>
+    </aside>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+/* ============================= DATA ============================= */
+function L(name, desc, meta){ meta = meta || {}; return Object.assign({name:name, category:'leaf', desc:desc}, meta); }
+function N(name, category, desc, children, meta){
+  meta = meta || {};
+  return Object.assign({name:name, category:category, desc:desc, children:children||[]}, meta);
+}
+
+// ---- Full B.Com variant set, reused wherever B.Com appears ----
+function bcomNode(){
+  return N("B.Com (Bachelor of Commerce)","degree","Commerce degree with several specialization tracks covering accounting, finance and digital commerce.",[
+    L("B.Com General","The standard, broad-based commerce curriculum."),
+    L("B.Com Computers","Adds computer applications and IT skills alongside core commerce subjects."),
+    L("B.Com Finance","Specializes in financial management, investment and corporate finance."),
+    L("B.Com Accounting & Taxation","Focuses on accounting standards, direct/indirect taxation and audit."),
+    L("B.Com E-Commerce","Covers digital business, online retail and e-payment systems."),
+    L("B.Com Banking & Insurance","Focuses on banking operations, insurance products and risk."),
+    L("B.Com International Business / Foreign Trade","Focuses on export-import procedures, trade finance and global commerce."),
+    L("B.Com Honours","An advanced, research-oriented variant with a deeper single-subject focus."),
+    N("M.Com → Ph.D. (Commerce)","higher","Postgraduate specialization followed by doctoral research/teaching.",[],{duration:"2 + 3–5 years"})
+  ],{duration:"3 years"});
+}
+
+// ---- Courses open to students from any Intermediate stream ----
+function openToAllStreams(){
+  return N("Open to All Streams","open","These common courses don't require a specific Intermediate stream — most colleges accept MPC, BiPC, MEC, CEC or HEC students alike, unlike stream-locked degrees such as B.Tech or MBBS.",[
+    bcomNode(),
+    L("BBA / BBM (Business Administration)","Undergraduate management degree; open admission regardless of Intermediate stream.",{duration:"3 years"}),
+    L("BCA (Bachelor of Computer Applications)","Computer-applications degree open to any stream, a common alternative route into software careers alongside B.Tech CSE.",{duration:"3 years"}),
+    L("B.A. (General)","General arts degree open to any stream, with subject choices similar to the HEC-track BA.",{duration:"3 years"})
+  ]);
+}
+
+// ---- Engineering (locked to MPC) ----
+var btechBranches = [
+  L("Computer Science & Engineering (CSE)","Software, algorithms, and systems design; the highest-demand engineering branch across IT and product companies."),
+  L("Information Technology (IT)","Focuses on applied computing, networks and enterprise systems, closely related to CSE."),
+  L("Electronics & Communication Engineering (ECE)","Covers circuits, signal processing, communication systems and embedded hardware."),
+  L("Electrical & Electronics Engineering (EEE)","Power systems, machines, and electrical/electronic control systems."),
+  L("Mechanical Engineering","Design, thermodynamics, manufacturing and machinery — one of the oldest and broadest branches."),
+  L("Civil Engineering","Structures, construction, transportation and infrastructure development."),
+  L("Chemical Engineering","Process design for chemicals, petroleum, pharma and materials industries."),
+  L("Aeronautical / Aerospace Engineering","Design and analysis of aircraft, spacecraft and propulsion systems."),
+  L("Automobile Engineering","Vehicle design, engines, and automotive manufacturing systems."),
+  L("Biomedical Engineering","Applies engineering principles to medical devices, imaging and healthcare technology."),
+  L("Mining Engineering","Extraction, safety and management of mineral resources."),
+  L("Metallurgical & Materials Engineering","Study of metals, alloys and advanced materials."),
+  L("Artificial Intelligence & Machine Learning","A newer CSE specialization focused on ML, deep learning and intelligent systems."),
+  L("Data Science & Data Engineering","Focuses on large-scale data pipelines, analytics and applied statistics."),
+  L("Robotics & Automation","Combines mechanical, electronics and CS for autonomous systems and industrial robots."),
+  L("Instrumentation Engineering","Focuses on measurement, sensors and process-control systems used across industries."),
+  L("Marine Engineering","Design, operation and maintenance of ship propulsion and onboard systems."),
+  L("Textile Engineering","Covers fibre, fabric and textile-machinery technology for the textile industry."),
+  L("Industrial & Production Engineering","Focuses on manufacturing systems, quality and industrial process optimization."),
+  L("Environmental Engineering","Applies engineering to pollution control, waste management and sustainability."),
+  L("Geoinformatics / Geomatics Engineering","Combines surveying, GIS and remote sensing for mapping and spatial analysis."),
+  N("Postgraduate & Research (after B.Tech)","higher","The natural continuation for engineering graduates who want deeper specialization or a research career.",[
+    N("M.Tech / M.S. (Engineering)","higher","2-year postgraduate specialization via GATE (India) or direct/international admission; sharpens expertise in a chosen branch.",[
+      L("Ph.D. / Doctorate — Engineering","3–5 year research degree, usually funded via fellowships (e.g. CSIR-UGC NET, institute assistantships); required for academia or core R&D roles.",{duration:"3–5 years",entry:"M.Tech/M.S. + research proposal or entrance (e.g. institute PhD test)"})
+    ],{duration:"2 years",entry:"GATE score or institute entrance, after B.Tech/B.E."})
+  ])
+];
+
+var mpc = N("MPC","science","Mathematics, Physics & Chemistry — the classic science stream for students aiming at engineering, pure sciences, architecture or defence careers.",[
+  N("B.Tech / B.E. (Engineering)","degree","A 4-year professional degree opening into every branch of core and emerging engineering.",btechBranches,{duration:"4 years",entry:"JEE Main/Advanced, state EAMCET/CET, or institute entrance after MPC"}),
+  N("Degree Courses","degree","General degree options — pure sciences and commerce/management — that MPC students can pursue alongside or instead of core engineering.",[
+    N("B.Sc (Pure & Applied Sciences)","degree","A 3-year foundational science degree, ideal for students aiming at research, teaching, or further specialization.",[
+      L("B.Sc Physics"),L("B.Sc Chemistry"),L("B.Sc Mathematics"),L("B.Sc Statistics"),
+      L("B.Sc Computer Science"),L("B.Sc Data Science"),L("B.Sc Electronics"),
+      L("B.Sc Environmental Science"),L("B.Sc Actuarial Science","Prepares students for actuarial exams alongside a maths/stats-heavy curriculum."),
+      L("B.Sc Geology","Studies the earth's structure, minerals and processes; a route into mining, petroleum and geological survey careers."),
+      L("B.Sc Forensic Science","Applies science to criminal investigation — ballistics, toxicology, fingerprinting and digital forensics."),
+      N("Postgraduate & Research (after B.Sc)","higher","Continuation path for pure-science graduates.",[
+        N("M.Sc (Specialization)","higher","2-year postgraduate degree deepening a chosen science subject.",[
+          L("Ph.D. / Doctorate — Sciences","Research degree via CSIR-UGC NET/JRF or institute entrance; leads to academia, national labs (ISRO, DRDO, CSIR) or R&D.",{duration:"3–5 years"})
+        ],{duration:"2 years"})
+      ])
+    ],{duration:"3 years",entry:"Merit/entrance after MPC"}),
+    bcomNode(),
+    L("BBA / BBM (Business Administration)","Undergraduate management degree; open to MPC students too.",{duration:"3 years"}),
+    L("BCA (Bachelor of Computer Applications)","Computer-applications degree, a common alternative into software careers alongside B.Tech CSE.",{duration:"3 years"}),
+    L("B.A. (General)","General arts degree, open to MPC students as a cross-stream option.",{duration:"3 years"})
+  ]),
+  N("B.Arch (Architecture)","degree","A 5-year professional degree in building design, blending art, engineering and planning.",[
+    L("M.Arch → Ph.D. (Architecture)","Postgraduate specialization (Urban Design, Landscape, Sustainable Architecture) followed by doctoral research.")
+  ],{duration:"5 years",entry:"NATA / JEE Paper 2"}),
+  N("B.Planning (Urban & Regional Planning)","degree","Focuses on city planning, land use and infrastructure policy.",[],{duration:"4 years",entry:"JEE Paper 2 / NATA / institute entrance"}),
+  N("Integrated Dual Degree (B.Tech + M.Tech)","degree","A 5-year combined program awarding both degrees together, saving one year versus doing them separately.",[],{duration:"5 years",entry:"JEE / institute entrance"}),
+  N("Defence & Uniformed Services (NDA)","degree","Direct entry into the armed forces after Class 12 via the National Defence Academy exam.",[
+    L("Indian Military Academy (Army)"),L("Indian Naval Academy"),L("Air Force Academy")
+  ],{duration:"3 years training",entry:"UPSC NDA written exam + SSB interview"}),
+  N("B.Sc Nautical Science / Merchant Navy","degree","Trains students to become deck officers on merchant ships.",[],{duration:"3 years",entry:"IMU-CET or institute entrance"}),
+  N("Commercial Pilot License (CPL) Training","degree","Flight training at a DGCA-approved academy leading to a commercial pilot license.",[],{duration:"~2 years",entry:"Class 12 with Physics & Maths, medical fitness (Class 1)"})
+]);
+
+// ---- Medical & Life Sciences (locked to BiPC) ----
+var bipc = N("BiPC","science","Biology, Physics & Chemistry — the stream for medicine, dentistry, pharmacy, nursing, veterinary and life-science careers.",[
+  N("MBBS (Medicine & Surgery)","degree","The primary medical degree, including a compulsory rotating internship.",[
+    N("MD / MS (Postgraduate Specialization)","higher","3-year specialization (Medicine or Surgery streams) via NEET-PG.",[
+      L("DM / M.Ch (Super-Specialization)","Highly competitive super-specialty training (Cardiology, Neurosurgery, etc.) after MD/MS.",{duration:"3 years"})
+    ],{duration:"3 years",entry:"NEET-PG"})
+  ],{duration:"5.5 years (incl. internship)",entry:"NEET-UG"}),
+  N("BDS (Dental Surgery)","degree","4-year dental degree plus 1-year internship.",[
+    L("MDS (Postgraduate Dental Specialization)","3-year specialization e.g. Orthodontics, Oral Surgery, via NEET-MDS.")
+  ],{duration:"4+1 years",entry:"NEET-UG"}),
+  N("AYUSH — Ayurveda, Homeopathy, Unani, Naturopathy","degree","Traditional and alternative systems of medicine, each with its own bachelor's degree.",[
+    L("BAMS (Ayurvedic Medicine & Surgery)"),L("BHMS (Homeopathic Medicine & Surgery)"),
+    L("BUMS (Unani Medicine & Surgery)"),L("BNYS (Naturopathy & Yogic Sciences)"),
+    L("Postgraduate (MD/MS in respective AYUSH system)")
+  ],{duration:"5.5 years",entry:"NEET-UG"}),
+  N("B.Pharmacy","degree","Foundational pharmacy degree covering drug formulation, pharmacology and pharma industry practice.",[
+    L("Pharm.D (Doctor of Pharmacy)","An alternative 6-year clinical pharmacy pathway direct after Class 12, focused on clinical practice."),
+    N("M.Pharmacy → Ph.D. (Pharmacy)","higher","Postgraduate specialization (Pharmaceutics, Pharmacology, Pharmaceutical Chemistry, etc.) followed by doctoral research.",[],{duration:"2 + 3–5 years"})
+  ],{duration:"4 years",entry:"State/institute entrance after BiPC"}),
+  N("B.Sc Nursing","degree","Professional nursing degree preparing students for hospital, community and specialty nursing roles.",[
+    L("M.Sc Nursing → Ph.D. (Nursing)","Postgraduate specialization in a nursing field, followed by doctoral research/teaching roles.")
+  ],{duration:"4 years",entry:"Merit/entrance after BiPC"}),
+  N("BPT (Bachelor of Physiotherapy)","degree","Trains students in rehabilitation, musculoskeletal and sports therapy.",[
+    L("MPT (Master of Physiotherapy)","Postgraduate specialization e.g. Orthopedics, Neurology, Sports Physiotherapy.")
+  ],{duration:"4.5 years incl. internship"}),
+  N("B.V.Sc & AH (Veterinary Science)","degree","Veterinary medicine and animal husbandry degree.",[
+    L("M.V.Sc → Ph.D. (Veterinary Science)","Postgraduate specialization followed by doctoral research.")
+  ],{duration:"5 years",entry:"NEET-UG (for veterinary)"}),
+  N("B.Sc Agriculture / Horticulture / Forestry","degree","Applied life-science degrees for farming systems, crop science and forest management.",[
+    L("M.Sc (Agriculture) → Ph.D.","Postgraduate specialization (Agronomy, Soil Science, Plant Breeding, etc.) followed by doctoral research.")
+  ],{duration:"4 years",entry:"ICAR AIEEA or state entrance"}),
+  N("Allied Health Sciences","degree","Paramedical bachelor's degrees supporting diagnosis and treatment alongside doctors.",[
+    L("B.Sc Medical Lab Technology (BMLT)"),L("B.Sc Radiology & Imaging Technology"),
+    L("B.Sc Optometry"),L("B.Sc Anesthesia Technology"),L("B.Sc Cardiac Care Technology"),
+    L("Bachelor of Occupational Therapy (BOT)"),
+    L("B.Sc Speech-Language Pathology & Audiology","Trains specialists in diagnosing and treating speech, language and hearing disorders."),
+    L("Genetic Counselling","A postgraduate-level allied-health specialization guiding patients on inherited conditions and genetic risk.")
+  ],{duration:"3–4.5 years"}),
+  N("Degree Courses","degree","General degree options — life sciences and commerce — open to BiPC students alongside the core medical and paramedical professional courses.",[
+    N("B.Sc Biological Sciences","degree","Pure life-science degree, the launchpad for research careers in biology.",[
+      L("Biotechnology"),L("Microbiology"),L("Genetics"),L("Zoology"),L("Botany"),
+      L("Biochemistry"),L("Food Science & Nutrition"),L("Environmental Science"),
+      L("Forensic Science","Applies biology and chemistry to criminal investigation — toxicology, DNA profiling and crime-scene analysis."),
+      L("Marine Biology","Studies ocean life and ecosystems; a route into oceanography and marine conservation careers."),
+      N("M.Sc (Life Sciences) → Ph.D.","higher","Postgraduate specialization followed by doctoral research; leads to academia, biotech/pharma R&D, or ICMR/CSIR labs.",[],{duration:"2 + 3–5 years"})
+    ],{duration:"3 years",entry:"Merit/entrance after BiPC"}),
+    bcomNode(),
+    L("BBA / BBM (Business Administration)","Undergraduate management degree; open to BiPC students too.",{duration:"3 years"}),
+    L("BCA (Bachelor of Computer Applications)","Computer-applications degree, open to any stream including BiPC.",{duration:"3 years"}),
+    L("B.A. (General)","General arts degree, open to BiPC students as a cross-stream option.",{duration:"3 years"})
+  ])
+]);
+
+// ---- Commerce professional courses shared by MEC & CEC ----
+function commerceCore(streamLabel){
+  return [
+    bcomNode(),
+    N("Chartered Accountancy (CA)","degree","India's premier accounting/audit qualification, run by ICAI in three stages, combined with practical articleship training.",[
+      L("CA Foundation"),L("CA Intermediate"),L("Articleship (2 years)"),L("CA Final")
+    ],{duration:"~4.5–5 years total",entry:"After Class 12 (Foundation route) or graduate entry"}),
+    N("Cost & Management Accountancy (CMA)","degree","Professional qualification in cost, management and strategic financial accounting, run by ICMAI.",[
+      L("CMA Foundation"),L("CMA Intermediate"),L("CMA Final")
+    ],{duration:"~3–4 years",entry:"After Class 12"}),
+    N("Company Secretary (CS)","degree","Professional qualification in corporate law, governance and compliance, run by ICSI.",[
+      L("CSEET"),L("CS Executive"),L("CS Professional")
+    ],{duration:"~3 years",entry:"After Class 12"}),
+    N("BBA / BBM (Business Administration)","degree","Undergraduate management degree covering marketing, HR, finance and operations.",[
+      N("MBA (Master of Business Administration)","higher","The most sought-after postgraduate management degree via CAT/XAT/CMAT/GMAT.",[
+        L("Ph.D. / Fellow Programme in Management","Doctoral research in management, leading to academia or strategy/consulting research roles.")
+      ],{duration:"2 years",entry:"CAT/XAT/CMAT/GMAT + graduation (any stream)"})
+    ],{duration:"3 years",entry:"Merit/entrance after "+streamLabel}),
+    N("BA Economics (Honours)","degree","Rigorous quantitative and theoretical economics degree.",[
+      L("MA Economics → Ph.D. (Economics)","Postgraduate specialization followed by doctoral research; leads to academia, RBI/policy research, or economic consulting.")
+    ],{duration:"3 years"}),
+    L("BCA (Bachelor of Computer Applications)","Computer-applications degree, a common alternative into software careers alongside B.Tech CSE.",{duration:"3 years"})
+  ];
+}
+
+var mec = N("MEC","commerce","Mathematics, Economics & Commerce — the stream for finance, accounting, business and quantitative economics careers.",
+  commerceCore("MEC").concat([
+    L("Actuarial Science","A specialized quantitative path (via the Institute of Actuaries of India) into insurance, pensions and risk — well suited to MEC's maths base."),
+    L("B.Com Banking & Insurance (BFIA)","A specialized commerce degree focused on banking operations, insurance and financial services.")
+  ])
+);
+
+var cec = N("CEC","commerce","Civics, Economics & Commerce — a commerce stream without compulsory Maths, suited to students aiming at commerce, law or the humanities-adjacent business world.",
+  commerceCore("CEC").concat([
+    N("Law — BA LLB (5-year Integrated)","degree","An integrated law degree combining a BA with the LLB, open to Class 12 students from any stream via CLAT and similar exams.",[
+      N("LLM → Ph.D. (Law)","higher","Postgraduate specialization (Corporate Law, Constitutional Law, IPR, etc.) followed by doctoral research.",[],{duration:"1–2 + 3–5 years"})
+    ],{duration:"5 years",entry:"CLAT / LSAT-India / state law entrance"})
+  ])
+);
+
+// ---- Humanities (HEC) ----
+var hec = N("HEC","humanities","History, Economics & Civics — the humanities/social-science stream for law, civil services, media, design and the arts.",[
+  N("BA (Humanities & Social Sciences)","degree","A broad undergraduate arts degree with wide subject choice.",[
+    L("History"),L("Political Science"),L("Public Administration"),L("Sociology"),
+    L("Psychology"),L("Philosophy"),L("Geography"),L("English Literature"),
+    L("Regional Language Literature"),L("Anthropology"),
+    L("Archaeology","Studies past human life through excavation and material remains — the route into heritage conservation and ASI/state archaeology careers."),
+    L("Museology","The study of museum management, curation and conservation of artefacts."),
+    L("Linguistics","The scientific study of language structure, meaning and change."),
+    L("Library & Information Science","Trains students for librarianship and information/knowledge management roles."),
+    L("Sanskrit / Classical Languages","Study of classical Indian languages and texts, feeding into research, translation and Indology."),
+    N("MA → M.Phil → Ph.D.","higher","Postgraduate specialization, an optional M.Phil, then doctoral research — the standard academic ladder in the humanities.",[],{duration:"2 + 1–2 + 3–5 years"})
+  ],{duration:"3 years",entry:"Merit/entrance after HEC (or any stream)"}),
+  N("Law — BA LLB (5-year Integrated)","degree","Same integrated law degree as under CEC — open to HEC students too, and in fact to any Class 12 stream, via CLAT.",[
+    L("LLM → Ph.D. (Law)","Postgraduate legal specialization followed by doctoral research.")
+  ],{duration:"5 years",entry:"CLAT / LSAT-India / state law entrance"}),
+  N("Journalism & Mass Communication (BJMC)","degree","Prepares students for print, broadcast, digital media and public relations careers.",[
+    L("MA Mass Communication","Postgraduate specialization in journalism, media studies or communication research.")
+  ],{duration:"3 years"}),
+  N("BSW (Social Work)","degree","Trains students for community development, NGO and public-welfare careers.",[
+    L("MSW (Master of Social Work)","Postgraduate specialization in medical, psychiatric, or community social work.")
+  ],{duration:"3 years"}),
+  N("Civil Services Preparatory Track","degree","Not a degree itself, but the common HEC-aligned career track toward UPSC/State PSC examinations, usually pursued alongside or after a BA.",[],{duration:"Ongoing (exam-based)",entry:"Graduation in any discipline, age/attempt limits apply"}),
+  N("BFA / Bachelor of Design","degree","Undergraduate degrees in fine arts, visual arts or design disciplines.",[
+    L("Fine Arts (Painting/Sculpture/Applied Art)"),L("Bachelor of Design (Communication/Product/Fashion)"),
+    L("MFA / M.Des → Ph.D.","Postgraduate specialization followed by doctoral research in art/design.")
+  ],{duration:"4 years",entry:"Portfolio-based entrance (e.g. NID DAT, UCEED)"}),
+  N("Integrated Teacher Education (B.A. B.Ed / B.El.Ed)","degree","A combined arts-and-education degree that directly qualifies graduates to teach.",[
+    L("M.Ed → Ph.D. (Education)","Postgraduate specialization in education, followed by doctoral research.")
+  ],{duration:"4 years",entry:"Merit/entrance after Class 12"}),
+  openToAllStreams()
+]);
+
+var intermediate = N("Intermediate / +2 (Class 11–12)","stage","The two-year pre-university stage where students choose a stream that determines which degree courses they can pursue next.",[mpc,bipc,mec,cec,hec],{duration:"2 years",entry:"Pass in SSC / Class 10"});
+
+var polytechnic = N("Polytechnic (Diploma)","vocational","A 3-year technical diploma taken directly after Class 10, offering an early, hands-on route into engineering trades.",[
+  L("Diploma in Civil Engineering"),L("Diploma in Mechanical Engineering"),
+  L("Diploma in Electrical & Electronics Engineering (EEE)"),L("Diploma in Electronics & Communication Engineering (ECE)"),
+  L("Diploma in Computer Engineering"),L("Diploma in Automobile Engineering"),
+  L("Diploma in Chemical Engineering"),L("Diploma in Mining Engineering"),
+  L("Diploma in Metallurgical Engineering"),L("Diploma in Textile Technology"),
+  L("Diploma in Aeronautical Engineering"),L("Diploma in Architecture Assistantship"),
+  L("Diploma in Marine Engineering"),L("Diploma in Instrumentation Engineering"),
+  N("After Diploma","higher","What a polytechnic diploma holder can do next.",[
+    L("Lateral Entry into B.Tech (2nd year)","Most states allow diploma holders to join the 2nd year of a matching B.Tech branch directly, skipping the 1st year.")
+  ])
+],{duration:"3 years",entry:"Pass in SSC / Class 10, via POLYCET or similar"});
+
+var iti = N("ITI (Industrial Training Institute)","vocational","Short-duration, highly practical trade training taken after Class 10 (or in some trades, Class 8), focused on direct workforce entry.",[
+  N("Engineering Trades","degree","Technical/mechanical trades under NCVT/SCVT.",[
+    L("Electrician"),L("Fitter"),L("Welder (Gas & Electric)"),L("Turner"),L("Machinist"),
+    L("Diesel Mechanic"),L("Motor Vehicle Mechanic"),L("Wireman"),L("Plumber"),
+    L("Draughtsman (Civil / Mechanical)"),L("Computer Operator & Programming Assistant (COPA)"),
+    L("Instrument Mechanic"),L("Refrigeration & Air Conditioning Mechanic"),
+    L("Electronics Mechanic"),L("Tool & Die Maker"),L("Sheet Metal Worker"),L("Surveyor")
+  ],{duration:"6 months – 2 years"}),
+  N("Non-Engineering Trades","degree","Trades outside the core mechanical/electrical group.",[
+    L("Stenographer (English / Hindi / Regional)"),L("Secretarial Practice"),
+    L("Sewing Technology"),L("Hair & Skin Care"),L("Desktop Publishing Operator"),
+    L("Health Sanitary Inspector")
+  ],{duration:"6 months – 2 years"}),
+  N("After ITI","higher","Progression options for ITI-certified students.",[
+    L("Apprenticeship Training (NAPS)","Paid on-the-job apprenticeship with industry, often leading directly to employment."),
+    L("Lateral Entry into 2nd-year Diploma","Many states allow ITI holders in a matching trade to join a polytechnic diploma's 2nd year.")
+  ])
+],{duration:"6 months – 2 years",entry:"Pass in Class 8/10, via NCVT/SCVT admission"});
+
+var vocational = N("Vocational Training","vocational","Short, skill-focused certificate and diploma courses (often NSDC-aligned) that lead straight into employment or self-employment.",[
+  L("Hospitality & Catering Management"),L("Beauty & Wellness"),L("Fashion Design & Tailoring"),
+  L("IT & ITES (Computer Applications)"),L("Retail Management"),
+  L("Healthcare Assistant / Paramedical Vocational Courses"),
+  L("Agriculture & Allied Vocational Courses"),L("Automobile Servicing (Vocational)"),
+  L("Handicrafts & Traditional Arts"),L("Banking, Financial Services & Insurance (BFSI)"),
+  L("Media & Entertainment (Vocational)"),
+  L("Yoga & Naturopathy (Vocational)","Short-term certification in yoga instruction and natural therapies."),
+  L("Renewable Energy Technician","Hands-on training in installing and maintaining solar and wind energy systems."),
+  L("Drone Technology & Piloting","Certification in operating drones for surveying, agriculture, and aerial photography.")
+],{duration:"6 months – 2 years",entry:"Class 10 or Class 12 pass, varies by course"});
+
+var schoolStage = N("School Education (Class 1–10)","stage","Foundational schooling culminating in the Secondary School Certificate (SSC) / Class 10 board exam — the decision point for every path that follows.",[
+  intermediate, polytechnic, iti, vocational
+],{duration:"10 years"});
+
+var DATA = N("Student","root","Every academic journey starts here. Explore the tree to see which courses each path opens up — and which ones are locked to a specific stream.",[schoolStage]);
+
+/* ============================= TREE RENDERING ============================= */
+var catColor = {
+  root: 'var(--brass-bright)',
+  stage: 'var(--vocational)',
+  science: 'var(--science)',
+  commerce: 'var(--commerce)',
+  humanities: 'var(--humanities)',
+  vocational: 'var(--vocational)',
+  degree: '#8fb8de',
+  higher: 'var(--higher)',
+  open: 'var(--open)',
+  leaf: '#8fa998'
+};
+var catLabel = {
+  root:'Root', stage:'Education Stage', science:'Science Stream', commerce:'Commerce Stream',
+  humanities:'Humanities Stream', vocational:'Vocational Track', degree:'Degree / Professional Course',
+  higher:'Postgraduate & Research', open:'Open to All Streams', leaf:'Specialization'
+};
+
+var svg = d3.select("#tree"),
+    gAll = svg.append("g").attr("class","zoomLayer"),
+    gLinks = gAll.append("g").attr("class","links"),
+    gNodes = gAll.append("g").attr("class","nodes");
+
+var i = 0, animDur = 380;
+var dx = 36, dy = 300;
+var treemap = d3.tree().nodeSize([dx, dy])
+  .separation(function(a, b){
+    // more breathing room between nodes that don't share a parent,
+    // and extra room around nodes that themselves expand further
+    var base = a.parent === b.parent ? 1.15 : 1.7;
+    if((a.children||a._children) || (b.children||b._children)) base += 0.2;
+    return base;
+  });
+
+var root = d3.hierarchy(DATA, function(d){ return d.children; });
+root.x0 = 0; root.y0 = 0;
+
+// Idempotent deep-collapse: walks BOTH .children and ._children (so it
+// works no matter the current expand state) and folds every descendant
+// into ._children. After calling this, only the node itself is visible —
+// nothing auto-expands, not even the first level. The user must click a
+// node, one level at a time, all the way from "Student" downward.
+function collapseAll(d){
+  var kids = d.children || d._children;
+  if(kids){
+    d._children = kids;
+    d.children = null;
+    kids.forEach(collapseAll);
+  }
+}
+collapseAll(root);
+
+var zoom = d3.zoom().scaleExtent([0.2, 2.5]).on("zoom", function(event){
+  gAll.attr("transform", event.transform);
+});
+svg.call(zoom);
+
+function initialTransform(){
+  var wrap = document.getElementById('chart-wrap');
+  var w = wrap.clientWidth, h = wrap.clientHeight;
+  var t = d3.zoomIdentity.translate(70, h/2).scale(0.95);
+  svg.call(zoom.transform, t);
+}
+
+function eachAll(d, cb){
+  cb(d);
+  var kids = d.children || d._children;
+  if(kids) kids.forEach(function(k){ eachAll(k, cb); });
+}
+
+function update(source){
+  var treeData = treemap(root);
+  var nodes = treeData.descendants();
+  var links = treeData.links();
+
+  nodes.forEach(function(d){ d.y = d.depth * dy; });
+
+  var node = gNodes.selectAll("g.node").data(nodes, function(d){ return d.id || (d.id = ++i); });
+
+  var nodeEnter = node.enter().append("g")
+    .attr("class", function(d){ return "node" + (d.depth===0?" root":""); })
+    .attr("transform", function(){ return "translate(" + source.y0 + "," + source.x0 + ")"; })
+    .on("click", function(event, d){ clicked(d); });
+
+  nodeEnter.append("circle")
+    .attr("r", 1e-6)
+    .style("fill", function(d){ return (d.children||d._children) ? "var(--navy-950)" : catColor[d.data.category]; })
+    .style("stroke", function(d){ return catColor[d.data.category]; });
+
+  nodeEnter.append("text")
+    .attr("dy", "0.32em")
+    .attr("x", function(d){ return d.children||d._children ? -14 : 14; })
+    .attr("text-anchor", function(d){ return d.children||d._children ? "end" : "start"; })
+    .text(function(d){ return d.data.name; })
+    .style("fill-opacity", 1e-6);
+
+  var nodeUpdate = nodeEnter.merge(node);
+
+  nodeUpdate.transition().duration(animDur)
+    .attr("transform", function(d){ return "translate(" + d.y + "," + d.x + ")"; })
+    .attr("class", function(d){
+      var cls = "node";
+      if(d.depth===0) cls += " root";
+      if(d.data._matched) cls += " matched";
+      if(d.data._selected) cls += " selected";
+      return cls;
+    });
+
+  nodeUpdate.select("circle")
+    .attr("r", function(d){ return d.depth===0 ? 9 : (d.children||d._children ? 6.5 : 5.5); })
+    .style("fill", function(d){ return (d.children||d._children) ? "var(--navy-950)" : catColor[d.data.category]; })
+    .style("stroke", function(d){ return catColor[d.data.category]; });
+
+  nodeUpdate.select("text").style("fill-opacity", 1);
+
+  var nodeExit = node.exit().transition().duration(animDur)
+    .attr("transform", function(){ return "translate(" + source.y + "," + source.x + ")"; })
+    .remove();
+  nodeExit.select("circle").attr("r", 1e-6);
+  nodeExit.select("text").style("fill-opacity", 1e-6);
+
+  var link = gLinks.selectAll("path.link").data(links, function(d){ return d.target.id; });
+
+  var linkEnter = link.enter().insert("path", "g")
+    .attr("class","link")
+    .attr("d", function(){
+      var o = {x: source.x0, y: source.y0};
+      return diagonal(o,o);
+    });
+
+  linkEnter.merge(link).transition().duration(animDur)
+    .attr("d", function(d){ return diagonal(d.source, d.target); });
+
+  link.exit().transition().duration(animDur)
+    .attr("d", function(){
+      var o = {x: source.x, y: source.y};
+      return diagonal(o,o);
+    }).remove();
+
+  nodes.forEach(function(d){ d.x0 = d.x; d.y0 = d.y; });
+}
+
+function diagonal(s, t){
+  return "M" + s.y + "," + s.x
+    + "C" + (s.y+t.y)/2 + "," + s.x
+    + " " + (s.y+t.y)/2 + "," + t.x
+    + " " + t.y + "," + t.x;
+}
+
+function clicked(d){
+  if(d.children){ d._children = d.children; d.children = null; }
+  else if(d._children){ d.children = d._children; d._children = null; }
+  root.each(function(n){ n.data._selected = false; });
+  d.data._selected = true;
+  update(d);
+  showPanel(d);
+}
+
+/* ============================= PANEL ============================= */
+var panel = document.getElementById('panel');
+var panelInner = document.getElementById('panelInner');
+
+function crumbsFor(d){
+  var parts = [];
+  var p = d;
+  while(p){ parts.unshift(p.data.name); p = p.parent; }
+  return parts.join("  ›  ");
+}
+
+function showPanel(d){
+  var data = d.data;
+  var kidsCount = (d.children ? d.children.length : 0) + (d._children ? d._children.length : 0);
+  var html = '';
+  html += '<div class="panel-crumbs">' + crumbsFor(d) + '</div>';
+  html += '<span class="panel-eyebrow">' + catLabel[data.category] + '</span>';
+  html += '<h2 class="panel-title">' + data.name + '</h2>';
+  html += '<div class="chip-row">';
+  if(data.duration) html += '<span class="chip">Duration: ' + data.duration + '</span>';
+  if(data.entry) html += '<span class="chip">Entry: ' + data.entry + '</span>';
+  html += '</div>';
+  html += '<span class="panel-section-label">Description</span>';
+  html += '<p class="panel-desc">' + (data.desc || 'No description available yet.') + '</p>';
+  if(kidsCount>0){
+    html += '<hr class="panel-divider">';
+    html += '<p class="panel-count">Leads to ' + kidsCount + ' further option' + (kidsCount===1?'':'s') + ' — click the node to expand it on the tree.</p>';
+  }
+  panelInner.innerHTML = html;
+  panel.classList.add('open');
+}
+
+document.getElementById('panelClose').addEventListener('click', function(){
+  panel.classList.remove('open');
+});
+
+/* ============================= SEARCH ============================= */
+var searchInput = document.getElementById('search');
+var matchCountEl = document.getElementById('matchCount');
+
+searchInput.addEventListener('input', function(){
+  var term = this.value.trim().toLowerCase();
+
+  // Fully collapse the whole tree first (idempotent — safe from any state),
+  // then reveal only the route(s) to matching nodes. This means searching
+  // "BCA" closes everything else and opens every branch that leads to a
+  // BCA node, wherever it appears in the tree.
+  collapseAll(root);
+
+  var matches = [];
+  if(term.length>1){
+    eachAll(root, function(d){
+      var isMatch = d.data.name.toLowerCase().indexOf(term) !== -1;
+      d.data._matched = isMatch;
+      if(isMatch) matches.push(d);
+    });
+    matches.forEach(function(d){
+      var p = d;
+      while(p){
+        if(p._children){ p.children = p._children; p._children = null; }
+        p = p.parent;
+      }
+    });
+    matchCountEl.textContent = matches.length + ' match' + (matches.length===1?'':'es');
+  } else {
+    eachAll(root, function(d){ d.data._matched = false; });
+    matchCountEl.textContent = '';
+  }
+  update(root);
+});
+
+/* ============================= ZOOM CONTROLS ============================= */
+document.getElementById('zoomIn').addEventListener('click', function(){ svg.transition().duration(200).call(zoom.scaleBy, 1.3); });
+document.getElementById('zoomOut').addEventListener('click', function(){ svg.transition().duration(200).call(zoom.scaleBy, 0.75); });
+document.getElementById('zoomReset').addEventListener('click', function(){ initialTransform(); });
+
+/* ============================= THEME TOGGLE ============================= */
+var themeBtn = document.getElementById('themeToggle');
+var currentTheme = 'dark';
+function applyTheme(t){
+  currentTheme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  themeBtn.textContent = t === 'dark' ? '🌙' : '☀️';
+}
+themeBtn.addEventListener('click', function(){
+  applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+});
+applyTheme('dark');
+
+/* ============================= INIT ============================= */
+update(root);
+initialTransform();
+window.addEventListener('resize', initialTransform);
+
+// default panel content
+panelInner.innerHTML =
+  '<div class="empty-state">' +
+    '<h2>Welcome to Pathways</h2>' +
+    '<p>This is a map of the Indian student education system — from school through to research degrees. Every branch is locked to the streams that actually lead to it: <strong>B.Tech</strong> only opens up from <strong>MPC</strong>, <strong>MBBS</strong> only from <strong>BiPC</strong>, <strong>CA/CMA/CS</strong> only from <strong>MEC/CEC</strong>, and so on.</p>' +
+    '<ul>' +
+      '<li>Click <strong>Student</strong> to begin — every node opens only when you click it, one level at a time.</li>' +
+      '<li>Click a node again to see its full description here.</li>' +
+      '<li>Search closes everything else and opens only the route(s) to your match.</li>' +
+      '<li>Drag to pan, scroll or use +/− to zoom.</li>' +
+    '</ul>' +
+  '</div>';
+panel.classList.add('open');
+</script>
+</body>
+</html>
